@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyRDP — Multi-Session Desktops</title>
+<meta name="description" content="TinyRDP runs multiple isolated Windows desktops on one PC, one per account. One file, no install.">
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+  :root { --blue:#12239e; --blue-dark:#0d1b7a; }
+  html, body { height: 100%; }
+  body {
+    background: #fff;
+    color: #111;
+    font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding: 40px 20px 60px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .mark { width: 58px; height: 58px; }
+  .logo { width: 220px; max-width: 66%; height: auto; }
+  .tagline { margin: 16px 0 4px; font-size: 15px; }
+  .sub { color: #555; margin: 0 0 26px; }
+  a { color: var(--blue); }
+  .dl {
+    display: inline-block;
+    background: var(--blue);
+    color: #fff;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 12px 26px;
+    border-radius: 5px;
+    border: 1px solid var(--blue-dark);
+  }
+  .dl:hover { background: var(--blue-dark); }
+  .dl-meta { color: #555; font-size: 12px; margin-top: 8px; }
+  h2 {
+    font-size: 15px;
+    margin: 34px 0 10px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #ddd;
+  }
+  ol { padding-left: 22px; margin: 0; }
+  ol li { margin: 6px 0; }
+  .faq dt { font-weight: bold; margin-top: 14px; }
+  .faq dd { margin: 4px 0 0 0; color: #333; }
+  .note {
+    background: #eef1ff;
+    border: 1px solid #c3caf5;
+    padding: 10px 12px;
+    border-radius: 5px;
+    font-size: 13px;
+    margin-top: 26px;
+  }
+  footer {
+    margin-top: 44px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+    color: #666;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="brand">
+    <img class="mark" src="icon.png" alt="">
+    <img class="logo" src="wordmark.png" alt="TinyRDP">
+  </div>
+  <p class="tagline"><b>Run multiple isolated Windows desktops on one PC.</b></p>
+  <p class="sub">One desktop per account, all on your own machine — so you can run the same setup across several accounts at once. One small app, no install.</p>
+
+  <p>
+    <a class="dl" href="https://github.com/VirageRoblox/TinyRDP/releases/latest/download/TinyRDP.exe">Download TinyRDP.exe</a>
+  </p>
+  <p class="dl-meta">Free · Windows 10/11 · single file · signed by Virage Studio · <a href="https://github.com/VirageRoblox/TinyRDP">source on GitHub</a></p>
+
+  <h2>How to use</h2>
+  <ol>
+    <li>Right-click TinyRDP → <b>Run as administrator</b>.</li>
+    <li>If it isn't already <b>READY</b>, click <b>Repair setup</b> (installs/updates the multi-session component).</li>
+    <li>Pick how many instances and a resolution, then click <b>Launch</b>.</li>
+    <li>Log your game + macro into each desktop, then minimize the windows — they keep running.</li>
+  </ol>
+  <p>Done testing? <b>Remove TinyRDP accounts</b> cleans up the accounts, their profiles, and the firewall rule.</p>
+
+  <h2>FAQ</h2>
+  <dl class="faq">
+    <dt>What does TinyRDP actually do?</dt>
+    <dd>It gives each account its own Remote Desktop session on your PC, so every account runs on a fully separate desktop that keeps rendering even in the background. It automates the fiddly parts (setup, accounts, session tweaks) around <b>RDPWrap</b>, the community multi-session enabler.</dd>
+
+    <dt>Is it safe? Why does Windows warn me?</dt>
+    <dd>TinyRDP is signed by <b>Virage Studio</b>, and the full source is public on GitHub. Windows may still show a caution the first few times until the download builds reputation — click <b>More info → Run anyway</b>.</dd>
+
+    <dt>Windows Defender flagged something.</dt>
+    <dd>That's <b>RDPWrap</b> (the multi-session component TinyRDP downloads from its official source), not TinyRDP itself. It's a known false positive for this kind of tool — allow it if prompted.</dd>
+
+    <dt>Will a Windows Update break it?</dt>
+    <dd>It can — RDPWrap depends on your exact Windows build, so a big update can stop multi-session until the community catches up. When that happens, just click <b>Repair setup</b> and you're back, usually in seconds.</dd>
+
+    <dt>Is this allowed?</dt>
+    <dd>Running multiple RDP sessions on consumer Windows is against the Windows license terms (it's a Server feature), so use it at your own risk. TinyRDP locks RDP to your own PC only, so the accounts it creates can't be reached from the network.</dd>
+
+    <dt>How many can I run?</dt>
+    <dd>Each session is a full desktop plus whatever you run inside it, so realistically 2–5 on a normal PC — not dozens.</dd>
+  </dl>
+
+  <div class="note">
+    <b>Heads up:</b> TinyRDP needs administrator rights (it creates local accounts and manages Remote Desktop). It only touches your own machine.
+  </div>
+
+  <footer>
+    © 2026 Virage Studio ·
+    <a href="https://github.com/VirageRoblox/TinyRDP">GitHub</a> ·
+    from the maker of <a href="https://getromacro.com">RoMacro</a> &amp; <a href="https://tinyacc.net">TinyAcc</a>
+  </footer>
+
+</div>
+</body>
+</html>
