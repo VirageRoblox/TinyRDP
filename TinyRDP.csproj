@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Standalone helper — deliberately NOT part of RoMacro.sln, same as TinyAcc.
+       Public tool: orchestrates RDPWrap-based multi-session, but embeds none of
+       it (the flagged RDPWrap.dll is downloaded from the official source at
+       runtime, so this exe stays AV-clean). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TinyRDP</AssemblyName>
+    <RootNamespace>TinyRDP</RootNamespace>
+    <UseWindowsForms>false</UseWindowsForms>
+
+    <!-- Elevation is required: creating local accounts, installing the RDPWrap
+         service, and adding firewall rules all need admin. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- File-properties metadata: what users see when they inspect the exe. -->
+    <Product>TinyRDP Multi-Session</Product>
+    <AssemblyTitle>TinyRDP Multi-Session</AssemblyTitle>
+    <Company>Virage Studio</Company>
+    <Authors>Virage Studio</Authors>
+    <Description>Run multiple isolated Windows desktops for multi-account use.</Description>
+    <Copyright>© 2026 Virage Studio</Copyright>
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0</InformationalVersion>
+  </PropertyGroup>
+
+  <!-- Ignore transient publish/output folders so their copies of the .xaml
+       aren't double-compiled. -->
+  <ItemGroup>
+    <Compile Remove="publish_repo/**;dist/**" />
+    <Page Remove="publish_repo/**;dist/**" />
+    <ApplicationDefinition Remove="publish_repo/**;dist/**" />
+    <None Remove="publish_repo/**;dist/**" />
+  </ItemGroup>
+
+</Project>
