@@ -10,8 +10,15 @@
         Foreground="Black">
 
     <StackPanel Margin="16,14,16,16">
-        <!-- Logo goes here once provided (same slot as TinyAcc's wordmark). -->
-        <TextBlock Text="TinyRDP" FontSize="22" FontWeight="Bold" Margin="0,0,0,2"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <Image Source="assets/tinyrdp-icon.png"
+                   Width="38" Height="38" VerticalAlignment="Center"
+                   Margin="0,0,10,0"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+            <Image Source="assets/tinyrdp-wordmark.png"
+                   Height="30" VerticalAlignment="Center"
+                   RenderOptions.BitmapScalingMode="HighQuality"/>
+        </StackPanel>
         <TextBlock Text="Multiple isolated desktops for multi-account use."
                    Foreground="#555" Margin="0,0,0,12"/>
 

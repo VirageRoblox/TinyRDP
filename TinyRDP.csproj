@@ -17,6 +17,7 @@
     <!-- Elevation is required: creating local accounts, installing the RDPWrap
          service, and adding firewall rules all need admin. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\TinyRDP.ico</ApplicationIcon>
 
     <!-- File-properties metadata: what users see when they inspect the exe. -->
     <Product>TinyRDP Multi-Session</Product>
@@ -29,6 +30,11 @@
     <FileVersion>0.1.0.0</FileVersion>
     <InformationalVersion>0.1.0</InformationalVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\tinyrdp-wordmark.png" />
+    <Resource Include="assets\tinyrdp-icon.png" />
+  </ItemGroup>
 
   <!-- Ignore transient publish/output folders so their copies of the .xaml
        aren't double-compiled. -->
