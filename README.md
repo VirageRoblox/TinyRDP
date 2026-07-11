@@ -29,8 +29,8 @@ multi-session enabler). It does the fiddly parts for you:
 ## Build phases
 
 1. **Scaffold** — app shell, admin manifest, branding ✅
-2. **RDPWrap detect / install / offset repair** ✅ (current)
-3. Account creation + localhost firewall lockdown
+2. **RDPWrap detect / install / offset repair** ✅
+3. **Account creation + localhost firewall lockdown** ✅ (current)
 4. Session fixes (minimize-render key, fixed resolution)
 5. One-click launch (DPAPI-encrypted `.rdp` + `mstsc`)
 6. UI polish

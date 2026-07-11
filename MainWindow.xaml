@@ -38,5 +38,12 @@
             <Button x:Name="RepairBtn" Content="Repair setup" Width="110" Height="26"
                     Click="Repair_Click"/>
         </StackPanel>
+
+        <TextBlock Margin="0,10,0,0" FontSize="11">
+            <Hyperlink x:Name="RemoveLink" Click="RemoveAccounts_Click"
+                       Foreground="#888" TextDecorations="Underline">
+                Remove TinyRDP accounts
+            </Hyperlink>
+        </TextBlock>
     </StackPanel>
 </Window>
