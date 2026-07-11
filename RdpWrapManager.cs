@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Net.Http;
 using System.Text.Json;
 using Microsoft.Win32;
@@ -39,7 +38,6 @@ public sealed class RdpWrapManager
 
     private static string WrapDll   => Path.Combine(InstallDir, "rdpwrap.dll");
     private static string IniPath    => Path.Combine(InstallDir, "rdpwrap.ini");
-    private static string InstallerExe => Path.Combine(InstallDir, "RDPWInst.exe");
     private static string TermSrvDll => Path.Combine(Environment.SystemDirectory, "termsrv.dll");
 
     private static readonly HttpClient Http = CreateHttp();
@@ -112,19 +110,19 @@ public sealed class RdpWrapManager
     {
         Directory.CreateDirectory(InstallDir);
 
-        if (!File.Exists(InstallerExe) || !File.Exists(WrapDll))
-        {
-            log.Report("Downloading RDPWrap (official fork)…");
-            await DownloadAndStageBinariesAsync(log, ct);
-        }
-
         // Grab the fresh offsets over the network BEFORE we touch the service,
         // so the service is down for the shortest possible time.
         log.Report("Fetching the latest offsets for your Windows build…");
         string iniText = await Http.GetStringAsync(IniRawUrl, ct);
 
-        log.Report("Registering the wrapper with Terminal Services…");
-        Run(InstallerExe, "-i -o", InstallDir);   // -i install, -o override existing
+        // Only run the installer for a genuinely fresh setup. When the wrapper is
+        // already installed (dll present + wired into TermService), a "repair" is
+        // just refreshing the offsets — no download, no installer needed.
+        if (!IsInstalled)
+        {
+            log.Report("Downloading and running the RDPWrap installer…");
+            await DownloadAndRunInstallerAsync(log, ct);
+        }
 
         // The running service keeps rdpwrap.ini open with no sharing, so any
         // write fails while it's up. Stop it, write the offsets, then start it.
@@ -163,45 +161,38 @@ public sealed class RdpWrapManager
         return false;
     }
 
-    /// <summary>Downloads the newest fork release zip and copies the wrapper files into place.</summary>
-    private async Task DownloadAndStageBinariesAsync(IProgress<string> log, CancellationToken ct)
+    /// <summary>
+    /// Downloads the fork's all-in-one installer (RDPW_Installer.exe) and runs it.
+    /// It handles copying the wrapper dll, wiring the TermService, and the initial
+    /// ini. Only used for a fresh setup; an existing install just gets the offsets
+    /// refreshed.
+    /// </summary>
+    private async Task DownloadAndRunInstallerAsync(IProgress<string> log, CancellationToken ct)
     {
         using var doc = JsonDocument.Parse(await Http.GetStringAsync(ReleaseApi, ct));
-        string? zipUrl = null;
+        string? url = null;
         if (doc.RootElement.TryGetProperty("assets", out var assets))
             foreach (var a in assets.EnumerateArray())
             {
                 var name = a.GetProperty("name").GetString() ?? "";
-                if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                if (name.StartsWith("RDPW_Installer", StringComparison.OrdinalIgnoreCase)
+                    && name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    zipUrl = a.GetProperty("browser_download_url").GetString();
+                    url = a.GetProperty("browser_download_url").GetString();
                     break;
                 }
             }
 
-        if (zipUrl is null)
+        if (url is null)
             throw new InvalidOperationException(
-                "Couldn't find a RDPWrap download. Install RDPWrap manually, then use Repair.");
+                "Couldn't find the RDPWrap installer download. Install RDPWrap manually, then use Repair.");
 
         string tmp = Path.Combine(Path.GetTempPath(), "tinyrdp-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmp);
-        string zip = Path.Combine(tmp, "rdpwrap.zip");
+        string exe = Path.Combine(tmp, "RDPW_Installer.exe");
+        await File.WriteAllBytesAsync(exe, await Http.GetByteArrayAsync(url, ct), ct);
 
-        byte[] bytes = await Http.GetByteArrayAsync(zipUrl, ct);
-        await File.WriteAllBytesAsync(zip, bytes, ct);
-
-        string extract = Path.Combine(tmp, "x");
-        ZipFile.ExtractToDirectory(zip, extract);
-
-        // The zip layout varies between releases, so find each file by name.
-        foreach (var wanted in new[] { "RDPWInst.exe", "rdpwrap.dll", "rdpwrap.ini",
-                                       "RDPConf.exe", "RDPCheck.exe" })
-        {
-            var found = Directory.EnumerateFiles(extract, wanted, SearchOption.AllDirectories)
-                                 .FirstOrDefault();
-            if (found != null)
-                File.Copy(found, Path.Combine(InstallDir, wanted), overwrite: true);
-        }
+        Run(exe, "", tmp);   // installer wires up the wrapper + service
 
         try { Directory.Delete(tmp, true); } catch { /* temp cleanup is best-effort */ }
     }
