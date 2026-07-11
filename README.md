@@ -32,6 +32,6 @@ multi-session enabler). It does the fiddly parts for you:
 2. **RDPWrap detect / install / offset repair** ✅
 3. **Account creation + localhost firewall lockdown** ✅
 4. **Session fixes (minimize-render key, fixed resolution)** ✅
-5. **One-click launch (DPAPI-encrypted `.rdp` + `mstsc`)** ✅ (current)
-6. UI polish
+5. **One-click launch (DPAPI-encrypted `.rdp` + `mstsc`)** ✅
+6. **UI polish** ✅ (current)
 7. Publish + VirusTotal + optional signing

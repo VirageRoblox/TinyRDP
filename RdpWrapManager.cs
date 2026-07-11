@@ -98,7 +98,11 @@ public sealed class RdpWrapManager
     public RdpWrapState CheckState()
     {
         if (!IsInstalled) return RdpWrapState.NotInstalled;
-        return IniSupportsCurrentVersion() ? RdpWrapState.Ready : RdpWrapState.NeedsUpdate;
+        // Ready means BOTH: the offsets cover this build AND the wrapper is
+        // actually loaded. The offsets alone can read "supported" while the
+        // service is still running stock termsrv — which looks ready but isn't.
+        if (!IniSupportsCurrentVersion()) return RdpWrapState.NeedsUpdate;
+        return IsWrapperLoaded() ? RdpWrapState.Ready : RdpWrapState.NeedsUpdate;
     }
 
     /// <summary>

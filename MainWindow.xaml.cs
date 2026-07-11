@@ -1,3 +1,5 @@
+using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,20 +18,28 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Loaded += (_, _) => RefreshStatus();
+        Loaded += (_, _) => { LoadUiState(); RefreshStatus(); };
+        Closing += (_, _) => SaveUiState();
     }
 
-    /// <summary>Refreshes both the status line and the descriptive hint (used on load).</summary>
+    // ── Status ────────────────────────────────────────────────────────────────
+
+    /// <summary>Refreshes the status line, the descriptive hint, and the Remove link.</summary>
     private void RefreshStatus()
     {
         var state = UpdateStatusLine();
         string ver = _rdp.TermSrvVersion;
+        int accts = _accounts.TrackedAccounts().Count;
+        string acctNote = accts > 0 ? $" {accts} TinyRDP account(s) set up." : "";
+
         HintText.Text = state switch
         {
-            RdpWrapState.Ready       => $"RDPWrap is installed and covers your Windows build ({ver}).",
-            RdpWrapState.NeedsUpdate => $"RDPWrap is installed but has no offsets for your build ({ver}). "
-                                        + "Click Repair setup to update it.",
-            _                        => "RDPWrap isn't installed. Click Repair setup to download and install it."
+            RdpWrapState.Ready => $"Ready on Windows {ver}.{acctNote} Set how many instances and click Launch.",
+            RdpWrapState.NeedsUpdate when _rdp.IniSupportsCurrentVersion()
+                => "Installed, but the wrapper isn't running yet. Click Repair setup (a reboot may be needed).",
+            RdpWrapState.NeedsUpdate
+                => $"No offsets for your Windows build ({ver}) yet. Click Repair setup to update them.",
+            _ => "RDPWrap isn't installed. Click Repair setup to download and install it."
         };
     }
 
@@ -53,38 +63,10 @@ public partial class MainWindow : Window
         return state;
     }
 
+    // ── Input ─────────────────────────────────────────────────────────────────
+
     private void DigitsOnly(object sender, TextCompositionEventArgs e)
         => e.Handled = !Regex.IsMatch(e.Text, "^[0-9]+$");
-
-    private async void Repair_Click(object sender, RoutedEventArgs e)
-    {
-        SetBusy(true);
-        var progress = new Progress<string>(msg => HintText.Text = msg);
-        try
-        {
-            await _rdp.InstallOrRepairAsync(progress);
-        }
-        catch (Exception ex)
-        {
-            HintText.Text = "Repair failed: " + ex.Message;
-        }
-        finally
-        {
-            SetBusy(false);
-            // Refresh only the status line — keep the repair's final message/error.
-            UpdateStatusLine();
-        }
-    }
-
-    private void SetBusy(bool busy)
-    {
-        RepairBtn.IsEnabled = !busy;
-        LaunchBtn.IsEnabled = false;
-        InstanceCountBox.IsEnabled = !busy;
-        ResolutionBox.IsEnabled = !busy;
-        RemoveLink.IsEnabled = !busy;
-        Cursor = busy ? Cursors.Wait : Cursors.Arrow;
-    }
 
     private int InstanceCount()
         => int.TryParse(InstanceCountBox.Text, out int n) ? Math.Clamp(n, 1, 20) : 1;
@@ -109,12 +91,35 @@ public partial class MainWindow : Window
         }
     }
 
+    // ── Actions ───────────────────────────────────────────────────────────────
+
+    private async void Repair_Click(object sender, RoutedEventArgs e)
+    {
+        SetBusy(true);
+        var progress = new Progress<string>(msg => HintText.Text = msg);
+        try
+        {
+            await _rdp.InstallOrRepairAsync(progress);
+        }
+        catch (Exception ex)
+        {
+            HintText.Text = "Repair failed: " + ex.Message;
+        }
+        finally
+        {
+            SetBusy(false);
+            // Refresh only the status line — keep the repair's final message/error.
+            UpdateStatusLine();
+        }
+    }
+
     // Full flow: prepare accounts + firewall + session tweaks, then open one RDP
     // session per account.
     private async void Launch_Click(object sender, RoutedEventArgs e)
     {
         int count = InstanceCount();
         ReadResolution();
+        SaveUiState();
 
         var confirm = MessageBox.Show(this,
             $"TinyRDP will create {count} local account(s) (TinyRDP1…{count}), block external " +
@@ -167,5 +172,52 @@ public partial class MainWindow : Window
         }
         catch (Exception ex) { HintText.Text = "Remove failed: " + ex.Message; }
         finally { SetBusy(false); UpdateStatusLine(); }
+    }
+
+    private void SetBusy(bool busy)
+    {
+        RepairBtn.IsEnabled = !busy;
+        LaunchBtn.IsEnabled = false;   // re-enabled by UpdateStatusLine when Ready
+        InstanceCountBox.IsEnabled = !busy;
+        ResolutionBox.IsEnabled = !busy;
+        RemoveLink.IsEnabled = !busy && _accounts.TrackedAccounts().Count > 0;
+        Cursor = busy ? Cursors.Wait : Cursors.Arrow;
+    }
+
+    // ── Remembered UI state ─────────────────────────────────────────────────────
+
+    private sealed class UiState
+    {
+        public int Instances { get; set; } = 2;
+        public int ResolutionIndex { get; set; }
+    }
+
+    private static string UiStatePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "TinyRDP", "ui.json");
+
+    private void LoadUiState()
+    {
+        try
+        {
+            if (!File.Exists(UiStatePath)) return;
+            var s = JsonSerializer.Deserialize<UiState>(File.ReadAllText(UiStatePath));
+            if (s is null) return;
+            InstanceCountBox.Text = Math.Clamp(s.Instances, 1, 20).ToString();
+            if (s.ResolutionIndex >= 0 && s.ResolutionIndex < ResolutionBox.Items.Count)
+                ResolutionBox.SelectedIndex = s.ResolutionIndex;
+        }
+        catch { /* first run / malformed — keep defaults */ }
+    }
+
+    private void SaveUiState()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(UiStatePath)!);
+            var s = new UiState { Instances = InstanceCount(), ResolutionIndex = ResolutionBox.SelectedIndex };
+            File.WriteAllText(UiStatePath, JsonSerializer.Serialize(s));
+        }
+        catch { /* non-fatal */ }
     }
 }
