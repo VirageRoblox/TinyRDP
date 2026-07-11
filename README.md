@@ -30,8 +30,8 @@ multi-session enabler). It does the fiddly parts for you:
 
 1. **Scaffold** — app shell, admin manifest, branding ✅
 2. **RDPWrap detect / install / offset repair** ✅
-3. **Account creation + localhost firewall lockdown** ✅ (current)
-4. Session fixes (minimize-render key, fixed resolution)
+3. **Account creation + localhost firewall lockdown** ✅
+4. **Session fixes (minimize-render key, fixed resolution)** ✅ (current)
 5. One-click launch (DPAPI-encrypted `.rdp` + `mstsc`)
 6. UI polish
 7. Publish + VirusTotal + optional signing

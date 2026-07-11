@@ -30,6 +30,15 @@
             <TextBox x:Name="InstanceCountBox" Text="2" Width="40" Height="22"
                      VerticalContentAlignment="Center"
                      PreviewTextInput="DigitsOnly"/>
+
+            <TextBlock Text="Resolution:" VerticalAlignment="Center" Margin="16,0,8,0"/>
+            <ComboBox x:Name="ResolutionBox" Width="110" Height="22" SelectedIndex="0">
+                <ComboBoxItem Content="1920 × 1080"/>
+                <ComboBoxItem Content="1600 × 900"/>
+                <ComboBoxItem Content="1366 × 768"/>
+                <ComboBoxItem Content="1280 × 720"/>
+                <ComboBoxItem Content="Full screen"/>
+            </ComboBox>
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Margin="0,14,0,0">

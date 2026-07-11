@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -9,6 +10,7 @@ public partial class MainWindow : Window
 {
     private readonly RdpWrapManager _rdp = new();
     private readonly AccountManager _accounts = new();
+    private readonly SessionSettings _session = new();
 
     public MainWindow()
     {
@@ -78,6 +80,7 @@ public partial class MainWindow : Window
         RepairBtn.IsEnabled = !busy;
         LaunchBtn.IsEnabled = false;
         InstanceCountBox.IsEnabled = !busy;
+        ResolutionBox.IsEnabled = !busy;
         RemoveLink.IsEnabled = !busy;
         Cursor = busy ? Cursors.Wait : Cursors.Arrow;
     }
@@ -85,11 +88,33 @@ public partial class MainWindow : Window
     private int InstanceCount()
         => int.TryParse(InstanceCountBox.Text, out int n) ? Math.Clamp(n, 1, 20) : 1;
 
-    // Phase 3: prepare the local accounts + firewall lockdown. The actual mstsc
-    // session launch is wired in Phase 5.
+    /// <summary>Reads the resolution dropdown into the session settings.</summary>
+    private void ReadResolution()
+    {
+        string sel = (ResolutionBox.SelectedItem as ComboBoxItem)?.Content as string ?? "";
+        if (sel.StartsWith("Full", StringComparison.OrdinalIgnoreCase))
+        {
+            _session.FullScreen = true;
+        }
+        else
+        {
+            var m = Regex.Match(sel, @"(\d+)\D+(\d+)");
+            if (m.Success)
+            {
+                _session.FullScreen = false;
+                _session.Width = int.Parse(m.Groups[1].Value);
+                _session.Height = int.Parse(m.Groups[2].Value);
+            }
+        }
+    }
+
+    // Phase 3-4: prepare the local accounts + firewall lockdown + session tweaks.
+    // The actual mstsc session launch is wired in Phase 5.
     private async void Launch_Click(object sender, RoutedEventArgs e)
     {
         int count = InstanceCount();
+        ReadResolution();
+
         var confirm = MessageBox.Show(this,
             $"TinyRDP will create {count} local account(s) (TinyRDP1…{count}) and block " +
             "external RDP so they're only reachable from this PC.\n\nContinue?",
@@ -102,10 +127,12 @@ public partial class MainWindow : Window
         {
             await Task.Run(() =>
             {
+                _session.ApplyMinimizeRenderFix(progress);
                 _accounts.ApplyFirewallLockdown(progress);
                 var accts = _accounts.EnsureAccounts(count, progress);
                 ((IProgress<string>)progress).Report(
-                    $"Prepared {accts.Count} account(s) and locked RDP to this PC. " +
+                    $"Prepared {accts.Count} account(s) at {_session.Describe()}, locked RDP to " +
+                    "this PC, and kept sessions rendering when minimized. " +
                     "Session launch arrives in the next phase.");
             });
         }
