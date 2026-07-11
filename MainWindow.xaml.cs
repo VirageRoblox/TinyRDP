@@ -15,35 +15,38 @@ public partial class MainWindow : Window
         Loaded += (_, _) => RefreshStatus();
     }
 
+    /// <summary>Refreshes both the status line and the descriptive hint (used on load).</summary>
     private void RefreshStatus()
     {
-        var state = _rdp.CheckState();
+        var state = UpdateStatusLine();
         string ver = _rdp.TermSrvVersion;
-
-        switch (state)
+        HintText.Text = state switch
         {
-            case RdpWrapState.Ready:
-                StatusText.Text = "Multi-session: READY";
-                StatusText.Foreground = new SolidColorBrush(Color.FromRgb(0x1b, 0x7f, 0x2b));
-                HintText.Text = $"RDPWrap is installed and covers your Windows build ({ver}).";
-                LaunchBtn.IsEnabled = true;
-                break;
+            RdpWrapState.Ready       => $"RDPWrap is installed and covers your Windows build ({ver}).",
+            RdpWrapState.NeedsUpdate => $"RDPWrap is installed but has no offsets for your build ({ver}). "
+                                        + "Click Repair setup to update it.",
+            _                        => "RDPWrap isn't installed. Click Repair setup to download and install it."
+        };
+    }
 
-            case RdpWrapState.NeedsUpdate:
-                StatusText.Text = "Multi-session: NEEDS REPAIR";
-                StatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xb8, 0x86, 0x00));
-                HintText.Text = $"RDPWrap is installed but has no offsets for your build ({ver}). " +
-                                "Click Repair setup to update it.";
-                LaunchBtn.IsEnabled = false;
-                break;
-
-            default: // NotInstalled
-                StatusText.Text = "Multi-session: NOT SET UP";
-                StatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xc6, 0x28, 0x28));
-                HintText.Text = "RDPWrap isn't installed. Click Repair setup to download and install it.";
-                LaunchBtn.IsEnabled = false;
-                break;
-        }
+    /// <summary>
+    /// Updates only the coloured status line + Launch enablement. Kept separate
+    /// from the hint so a Repair result/error message isn't clobbered when we
+    /// re-check state afterwards.
+    /// </summary>
+    private RdpWrapState UpdateStatusLine()
+    {
+        var state = _rdp.CheckState();
+        (string label, Color color, bool canLaunch) = state switch
+        {
+            RdpWrapState.Ready       => ("Multi-session: READY",        Color.FromRgb(0x1b, 0x7f, 0x2b), true),
+            RdpWrapState.NeedsUpdate => ("Multi-session: NEEDS REPAIR", Color.FromRgb(0xb8, 0x86, 0x00), false),
+            _                        => ("Multi-session: NOT SET UP",   Color.FromRgb(0xc6, 0x28, 0x28), false)
+        };
+        StatusText.Text = label;
+        StatusText.Foreground = new SolidColorBrush(color);
+        LaunchBtn.IsEnabled = canLaunch;
+        return state;
     }
 
     private void DigitsOnly(object sender, TextCompositionEventArgs e)
@@ -64,7 +67,8 @@ public partial class MainWindow : Window
         finally
         {
             SetBusy(false);
-            RefreshStatus();
+            // Refresh only the status line — keep the repair's final message/error.
+            UpdateStatusLine();
         }
     }
 

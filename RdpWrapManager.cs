@@ -118,19 +118,49 @@ public sealed class RdpWrapManager
             await DownloadAndStageBinariesAsync(log, ct);
         }
 
+        // Grab the fresh offsets over the network BEFORE we touch the service,
+        // so the service is down for the shortest possible time.
+        log.Report("Fetching the latest offsets for your Windows build…");
+        string iniText = await Http.GetStringAsync(IniRawUrl, ct);
+
         log.Report("Registering the wrapper with Terminal Services…");
         Run(InstallerExe, "-i -o", InstallDir);   // -i install, -o override existing
 
-        log.Report("Fetching the latest offsets for your Windows build…");
-        await UpdateIniAsync(ct);
+        // The running service keeps rdpwrap.ini open with no sharing, so any
+        // write fails while it's up. Stop it, write the offsets, then start it.
+        log.Report("Stopping Remote Desktop service…");
+        Run("net.exe", "stop termservice /y", null, tolerateFailure: true);
 
-        log.Report("Restarting Remote Desktop service…");
-        RestartTermService(log);
+        log.Report("Writing offsets…");
+        if (!TryWriteIni(iniText))
+        {
+            Run("net.exe", "start termservice", null, tolerateFailure: true);
+            throw new IOException(
+                "Couldn't update rdpwrap.ini — it's still locked. Close any open Remote "
+                + "Desktop sessions (or reboot), then run Repair again.");
+        }
+
+        log.Report("Starting Remote Desktop service…");
+        Run("net.exe", "start termservice", null, tolerateFailure: true);
 
         log.Report(CheckState() == RdpWrapState.Ready
             ? "Done — multi-session is ready."
-            : "Installed, but this Windows build isn't in the offset list yet. "
-              + "Try Repair again later, or reboot and re-check.");
+            : "Offsets updated, but the check still fails — reboot and re-open TinyRDP.");
+    }
+
+    /// <summary>
+    /// Writes the ini, retrying briefly: even after "net stop", the service host
+    /// can take a moment to release its file handle.
+    /// </summary>
+    private static bool TryWriteIni(string text)
+    {
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            try { File.WriteAllText(IniPath, text); return true; }
+            catch (IOException) { Thread.Sleep(300); }
+            catch (UnauthorizedAccessException) { Thread.Sleep(300); }
+        }
+        return false;
     }
 
     /// <summary>Downloads the newest fork release zip and copies the wrapper files into place.</summary>
@@ -174,23 +204,6 @@ public sealed class RdpWrapManager
         }
 
         try { Directory.Delete(tmp, true); } catch { /* temp cleanup is best-effort */ }
-    }
-
-    /// <summary>Overwrites the installed ini with the continuously-updated community offsets.</summary>
-    private async Task UpdateIniAsync(CancellationToken ct)
-    {
-        string ini = await Http.GetStringAsync(IniRawUrl, ct);
-        await File.WriteAllTextAsync(IniPath, ini, ct);
-    }
-
-    private static void RestartTermService(IProgress<string> log)
-    {
-        // TermService has dependents and active sessions, so a live restart can
-        // fail; the wrapper still takes effect on next boot, so we tolerate it.
-        Run("net.exe", "stop termservice /y", null, tolerateFailure: true);
-        var r = Run("net.exe", "start termservice", null, tolerateFailure: true);
-        if (r != 0)
-            log.Report("Note: couldn't restart the service live — a reboot will finish it.");
     }
 
     private static int Run(string exe, string args, string? workingDir, bool tolerateFailure = false)
