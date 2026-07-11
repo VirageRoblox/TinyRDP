@@ -72,7 +72,7 @@
     <img class="logo" src="wordmark.png" alt="TinyRDP">
   </div>
   <p class="tagline"><b>Run multiple isolated Windows desktops on one PC.</b></p>
-  <p class="sub">One desktop per account, all on your own machine — so you can run the same setup across several accounts at once. One small app, no install.</p>
+  <p class="sub">One desktop per account, all on your own machine. One small app, no install.</p>
 
   <p>
     <a class="dl" href="https://github.com/VirageRoblox/TinyRDP/releases/latest/download/TinyRDP.exe">Download TinyRDP.exe</a>
@@ -84,9 +84,7 @@
     <li>Right-click TinyRDP → <b>Run as administrator</b>.</li>
     <li>If it isn't already <b>READY</b>, click <b>Repair setup</b> (installs/updates the multi-session component).</li>
     <li>Pick how many instances and a resolution, then click <b>Launch</b>.</li>
-    <li>Log your game + macro into each desktop, then minimize the windows — they keep running.</li>
   </ol>
-  <p>Done testing? <b>Remove TinyRDP accounts</b> cleans up the accounts, their profiles, and the firewall rule.</p>
 
   <h2>FAQ</h2>
   <dl class="faq">
@@ -96,22 +94,12 @@
     <dt>Is it safe? Why does Windows warn me?</dt>
     <dd>TinyRDP is signed by <b>Virage Studio</b>, and the full source is public on GitHub. Windows may still show a caution the first few times until the download builds reputation — click <b>More info → Run anyway</b>.</dd>
 
-    <dt>Windows Defender flagged something.</dt>
-    <dd>That's <b>RDPWrap</b> (the multi-session component TinyRDP downloads from its official source), not TinyRDP itself. It's a known false positive for this kind of tool — allow it if prompted.</dd>
-
     <dt>Will a Windows Update break it?</dt>
-    <dd>It can — RDPWrap depends on your exact Windows build, so a big update can stop multi-session until the community catches up. When that happens, just click <b>Repair setup</b> and you're back, usually in seconds.</dd>
-
-    <dt>Is this allowed?</dt>
-    <dd>Running multiple RDP sessions on consumer Windows is against the Windows license terms (it's a Server feature), so use it at your own risk. TinyRDP locks RDP to your own PC only, so the accounts it creates can't be reached from the network.</dd>
+    <dd>It can. RDPWrap depends on your exact Windows build. When that happens, just click <b>Repair setup</b> and you're back, usually in seconds.</dd>
 
     <dt>How many can I run?</dt>
-    <dd>Each session is a full desktop plus whatever you run inside it, so realistically 2–5 on a normal PC — not dozens.</dd>
+    <dd>Each session is a full desktop plus whatever you run inside it, so 2–5 on an average PC.</dd>
   </dl>
-
-  <div class="note">
-    <b>Heads up:</b> TinyRDP needs administrator rights (it creates local accounts and manages Remote Desktop). It only touches your own machine.
-  </div>
 
   <footer>
     © 2026 Virage Studio ·
