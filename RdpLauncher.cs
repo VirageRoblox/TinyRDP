@@ -61,6 +61,17 @@ public sealed class RdpLauncher
         sb.AppendLine("redirectclipboard:i:1");
         sb.AppendLine("audiomode:i:2");              // don't play the session's audio locally
 
+        // Performance: strip desktop eye-candy so the host isn't rendering
+        // wallpaper / animations / transparency across every session at once.
+        sb.AppendLine("disable wallpaper:i:1");
+        sb.AppendLine("disable full window drag:i:1");
+        sb.AppendLine("disable menu anims:i:1");
+        sb.AppendLine("disable themes:i:1");
+        sb.AppendLine("disable cursor setting:i:1");
+        sb.AppendLine("bitmapcachepersistenable:i:1");
+        sb.AppendLine("connection type:i:6");        // treat as fast LAN (it's loopback)
+        sb.AppendLine("allow font smoothing:i:1");   // keep text crisp so OCR stays accurate
+
         if (s.FullScreen)
         {
             sb.AppendLine("screen mode id:i:2");

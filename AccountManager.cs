@@ -76,18 +76,39 @@ public sealed class AccountManager
         return result;
     }
 
-    /// <summary>Deletes every account TinyRDP created and un-hides them from login.</summary>
+    /// <summary>
+    /// Deletes every account TinyRDP created — including its Windows profile
+    /// folder — and un-hides them from login.
+    /// </summary>
     public void RemoveAll(IProgress<string> log)
     {
         var cfg = LoadConfig();
         foreach (var name in cfg.Accounts.ToList())
         {
             log.Report($"Removing account {name}…");
+            RemoveUserProfile(name);   // wipe C:\Users\<name> first, while the SID still resolves
             Run("net.exe", $"user {name} /delete", tolerateFailure: true);
             HideFromLogin(name, false);
         }
         cfg.Accounts.Clear();
         SaveConfig(cfg);
+    }
+
+    /// <summary>
+    /// Deletes the account's Windows profile (the C:\Users\&lt;name&gt; folder and
+    /// its ProfileList registry entry) via Win32_UserProfile, matched by SID so we
+    /// can never delete the wrong folder. Runs before the account is deleted, while
+    /// the SID still resolves. A profile that's currently in use won't delete —
+    /// close that session first.
+    /// </summary>
+    private static void RemoveUserProfile(string name)
+    {
+        string ps =
+            "$u = Get-LocalUser -Name '" + name + "' -ErrorAction SilentlyContinue; " +
+            "if ($u) { Get-CimInstance Win32_UserProfile | " +
+            "Where-Object { $_.SID -eq $u.SID.Value } | " +
+            "Remove-CimInstance -ErrorAction SilentlyContinue }";
+        Run("powershell.exe", "-NoProfile -Command \"" + ps + "\"", tolerateFailure: true);
     }
 
     // ── Firewall ──────────────────────────────────────────────────────────────
