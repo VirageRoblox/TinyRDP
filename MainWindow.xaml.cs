@@ -11,6 +11,7 @@ public partial class MainWindow : Window
     private readonly RdpWrapManager _rdp = new();
     private readonly AccountManager _accounts = new();
     private readonly SessionSettings _session = new();
+    private readonly RdpLauncher _launcher = new();
 
     public MainWindow()
     {
@@ -108,16 +109,17 @@ public partial class MainWindow : Window
         }
     }
 
-    // Phase 3-4: prepare the local accounts + firewall lockdown + session tweaks.
-    // The actual mstsc session launch is wired in Phase 5.
+    // Full flow: prepare accounts + firewall + session tweaks, then open one RDP
+    // session per account.
     private async void Launch_Click(object sender, RoutedEventArgs e)
     {
         int count = InstanceCount();
         ReadResolution();
 
         var confirm = MessageBox.Show(this,
-            $"TinyRDP will create {count} local account(s) (TinyRDP1…{count}) and block " +
-            "external RDP so they're only reachable from this PC.\n\nContinue?",
+            $"TinyRDP will create {count} local account(s) (TinyRDP1…{count}), block external " +
+            $"RDP, then open {count} Remote Desktop session(s) on this PC at {_session.Describe()}." +
+            "\n\nContinue?",
             "TinyRDP", MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.OK) return;
 
@@ -125,18 +127,17 @@ public partial class MainWindow : Window
         var progress = new Progress<string>(m => HintText.Text = m);
         try
         {
-            await Task.Run(() =>
+            int launched = await Task.Run(() =>
             {
                 _session.ApplyMinimizeRenderFix(progress);
                 _accounts.ApplyFirewallLockdown(progress);
                 var accts = _accounts.EnsureAccounts(count, progress);
-                ((IProgress<string>)progress).Report(
-                    $"Prepared {accts.Count} account(s) at {_session.Describe()}, locked RDP to " +
-                    "this PC, and kept sessions rendering when minimized. " +
-                    "Session launch arrives in the next phase.");
+                return _launcher.LaunchAll(accts, _session, progress);
             });
+            HintText.Text = $"Opened {launched} session(s) at {_session.Describe()}. " +
+                            "Launch your game + macro inside each, then minimize the windows.";
         }
-        catch (Exception ex) { HintText.Text = "Setup failed: " + ex.Message; }
+        catch (Exception ex) { HintText.Text = "Launch failed: " + ex.Message; }
         finally { SetBusy(false); UpdateStatusLine(); }
     }
 
