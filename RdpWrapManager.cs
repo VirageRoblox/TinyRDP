@@ -124,26 +124,82 @@ public sealed class RdpWrapManager
             await DownloadAndRunInstallerAsync(log, ct);
         }
 
-        // The running service keeps rdpwrap.ini open with no sharing, so any
-        // write fails while it's up. Stop it, write the offsets, then start it.
+        // Bring the service fully DOWN before writing: this both releases the ini
+        // lock and — crucially — forces the wrapper (rdpwrap.dll) to actually load
+        // on the next start. A plain "net stop" usually fails while the RDP
+        // listener is up, so if it's still running we force-kill its svchost.
         log.Report("Stopping Remote Desktop service…");
         Run("net.exe", "stop termservice /y", null, tolerateFailure: true);
+        if (IsServiceRunning("TermService"))
+        {
+            log.Report("Forcing the service to reload…");
+            Run("taskkill.exe", "/F /FI \"SERVICES eq TermService\"", null, tolerateFailure: true);
+            Thread.Sleep(1500);
+        }
 
         log.Report("Writing offsets…");
         if (!TryWriteIni(iniText))
         {
             Run("net.exe", "start termservice", null, tolerateFailure: true);
             throw new IOException(
-                "Couldn't update rdpwrap.ini — it's still locked. Close any open Remote "
-                + "Desktop sessions (or reboot), then run Repair again.");
+                "Couldn't update rdpwrap.ini — it's still locked. Reboot, then run Repair again.");
         }
 
         log.Report("Starting Remote Desktop service…");
         Run("net.exe", "start termservice", null, tolerateFailure: true);
+        Thread.Sleep(2000);
 
-        log.Report(CheckState() == RdpWrapState.Ready
-            ? "Done — multi-session is ready."
-            : "Offsets updated, but the check still fails — reboot and re-open TinyRDP.");
+        // Confirm the wrapper actually loaded this time.
+        log.Report(IsWrapperLoaded()
+            ? "Done — the wrapper is active. Click Launch to open your sessions."
+            : "Offsets updated, but the wrapper still isn't active. Reboot once, then click Launch.");
+    }
+
+    /// <summary>True if TermService's process currently has rdpwrap.dll loaded.</summary>
+    public bool IsWrapperLoaded()
+    {
+        int pid = TermServicePid();
+        if (pid <= 0) return false;
+        try
+        {
+            using var p = Process.GetProcessById(pid);
+            foreach (ProcessModule m in p.Modules)
+                if (string.Equals(m.ModuleName, "rdpwrap.dll", StringComparison.OrdinalIgnoreCase))
+                    return true;
+        }
+        catch { /* module enumeration can be denied; treat as "can't confirm" */ }
+        return false;
+    }
+
+    private static int TermServicePid()
+    {
+        var (_, output) = RunCapture("sc.exe", "queryex TermService");
+        var m = System.Text.RegularExpressions.Regex.Match(output, @"PID\s*:\s*(\d+)");
+        return m.Success ? int.Parse(m.Groups[1].Value) : 0;
+    }
+
+    private static bool IsServiceRunning(string name)
+    {
+        var (_, output) = RunCapture("sc.exe", $"query {name}");
+        return output.Contains("RUNNING", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (int code, string output) RunCapture(string exe, string args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = exe,
+            Arguments = args,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        using var p = Process.Start(psi);
+        if (p is null) return (-1, "");
+        string o = p.StandardOutput.ReadToEnd();
+        p.WaitForExit();
+        return (p.ExitCode, o);
     }
 
     /// <summary>
