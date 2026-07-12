@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Win32;
 
 namespace TinyRDP;
@@ -77,21 +78,81 @@ public sealed class AccountManager
     }
 
     /// <summary>
-    /// Deletes every account TinyRDP created — including its Windows profile
-    /// folder — and un-hides them from login.
+    /// Signs off every logged-in TinyRDP session. Closing an RDP window only
+    /// *disconnects* the session — it keeps running and holds the profile open,
+    /// so these pile up and block cleanup unless we actually log them off.
+    /// </summary>
+    public void SignOffSessions(IProgress<string> log)
+    {
+        var (_, output) = RunCapture("qwinsta.exe", "");
+        // Rows look like:  "            TinyRDP2       2   Disc ..."  — grab the id
+        // (the number right after the TinyRDPn username).
+        var ids = new List<string>();
+        foreach (Match m in Regex.Matches(output, @"TinyRDP\d+\s+(\d+)\s"))
+            ids.Add(m.Groups[1].Value);
+
+        foreach (var id in ids.Distinct())
+        {
+            log.Report($"Signing off session {id}…");
+            Run("logoff.exe", id, tolerateFailure: true);
+        }
+        if (ids.Count > 0) Thread.Sleep(1500);   // let the profiles unload
+    }
+
+    /// <summary>
+    /// Deletes every account TinyRDP created — signs off its sessions, removes the
+    /// account, wipes its Windows profile folder, and sweeps any leftover
+    /// TinyRDP* profile folders + registry so nothing accumulates over time.
     /// </summary>
     public void RemoveAll(IProgress<string> log)
     {
+        SignOffSessions(log);   // must be logged off or the profiles won't delete
+
         var cfg = LoadConfig();
         foreach (var name in cfg.Accounts.ToList())
         {
             log.Report($"Removing account {name}…");
-            RemoveUserProfile(name);   // wipe C:\Users\<name> first, while the SID still resolves
+            RemoveUserProfile(name);   // wipe C:\Users\<name> while the SID still resolves
             Run("net.exe", $"user {name} /delete", tolerateFailure: true);
             HideFromLogin(name, false);
         }
+
+        SweepLeftoverProfiles(log);   // orphaned TinyRDP1.WINDOWS etc. from past rounds
         cfg.Accounts.Clear();
         SaveConfig(cfg);
+    }
+
+    /// <summary>
+    /// Removes any stray TinyRDP* profiles left on disk (e.g. TinyRDP1.WINDOWS
+    /// created when an old folder blocked a fresh login) plus their ProfileList
+    /// registry entries — the bits RemoveUserProfile can't match because no
+    /// account points at them anymore.
+    /// </summary>
+    private static void SweepLeftoverProfiles(IProgress<string> log)
+    {
+        // Drop ProfileList registry entries whose path points at a TinyRDP profile.
+        string ps =
+            "Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList' | " +
+            "ForEach-Object { $p = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).ProfileImagePath; " +
+            "if ($p -match '\\\\Users\\\\TinyRDP') { Remove-Item $_.PSPath -Recurse -Force -ErrorAction SilentlyContinue } }";
+        Run("powershell.exe", "-NoProfile -Command \"" + ps + "\"", tolerateFailure: true);
+
+        // Delete leftover folders on disk.
+        try
+        {
+            string usersDir = Directory.GetParent(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))!.FullName;
+            foreach (var dir in Directory.GetDirectories(usersDir, "TinyRDP*"))
+            {
+                try
+                {
+                    Directory.Delete(dir, recursive: true);
+                    log.Report($"Deleted leftover {Path.GetFileName(dir)}…");
+                }
+                catch { /* still locked — a session may not have fully unloaded */ }
+            }
+        }
+        catch { /* best-effort */ }
     }
 
     /// <summary>
@@ -202,6 +263,9 @@ public sealed class AccountManager
     }
 
     private static int Run(string exe, string args, bool tolerateFailure = false)
+        => RunCapture(exe, args, tolerateFailure).code;
+
+    private static (int code, string output) RunCapture(string exe, string args, bool tolerateFailure = true)
     {
         var psi = new ProcessStartInfo
         {
@@ -215,10 +279,11 @@ public sealed class AccountManager
         using var p = Process.Start(psi);
         if (p is null)
         {
-            if (tolerateFailure) return -1;
+            if (tolerateFailure) return (-1, "");
             throw new InvalidOperationException($"Failed to start {exe}");
         }
+        string o = p.StandardOutput.ReadToEnd();
         p.WaitForExit();
-        return p.ExitCode;
+        return (p.ExitCode, o);
     }
 }

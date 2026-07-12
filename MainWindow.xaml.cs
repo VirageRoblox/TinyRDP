@@ -134,6 +134,9 @@ public partial class MainWindow : Window
         {
             int launched = await Task.Run(() =>
             {
+                // Clear any leftover sessions first so relaunching doesn't pile up
+                // disconnected sessions each time.
+                _accounts.SignOffSessions(progress);
                 _session.ApplyMinimizeRenderFix(progress);
                 _accounts.ApplyFirewallLockdown(progress);
                 var accts = _accounts.EnsureAccounts(count, progress);
@@ -155,7 +158,8 @@ public partial class MainWindow : Window
             return;
         }
         var confirm = MessageBox.Show(this,
-            $"Delete {tracked.Count} TinyRDP account(s) and remove the RDP firewall lock?",
+            $"This will sign off any open TinyRDP sessions, delete {tracked.Count} account(s) " +
+            "and their profile folders, and remove the RDP firewall lock.\n\nContinue?",
             "TinyRDP", MessageBoxButton.OKCancel, MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.OK) return;
 
