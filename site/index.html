@@ -18,6 +18,15 @@
     margin: 0;
   }
   .page { max-width: 640px; margin: 0 auto; padding: 40px 20px 60px; }
+  .hero { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .intro { flex: 1 1 280px; min-width: 250px; }
+  .shot {
+    flex: 0 0 auto;
+    width: 320px; max-width: 100%; height: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 6px 22px rgba(0,0,0,.16);
+  }
   .brand { display: flex; align-items: center; gap: 14px; }
   .mark { width: 58px; height: 58px; }
   .logo { width: 220px; max-width: 66%; height: auto; }
@@ -67,16 +76,22 @@
 <body>
 <div class="page">
 
-  <div class="brand">
-    <img class="mark" src="icon.png" alt="">
-    <img class="logo" src="wordmark.png" alt="TinyRDP">
-  </div>
-  <p class="tagline"><b>Run multiple isolated Windows desktops on one PC.</b></p>
+  <div class="hero">
+    <div class="intro">
+      <div class="brand">
+        <img class="mark" src="icon.png" alt="">
+        <img class="logo" src="wordmark.png" alt="TinyRDP">
+      </div>
+      <p class="tagline"><b>Run multiple isolated Windows desktops on one PC.</b></p>
 
-  <p>
-    <a class="dl" href="https://github.com/VirageRoblox/TinyRDP/releases/latest/download/TinyRDP.exe">Download TinyRDP.exe</a>
-  </p>
-  <p class="dl-meta">Free · Windows 10/11 · <a href="https://github.com/VirageRoblox/TinyRDP">source on GitHub</a></p>
+      <p>
+        <a class="dl" href="https://github.com/VirageRoblox/TinyRDP/releases/latest/download/TinyRDP.exe">Download TinyRDP.exe</a>
+      </p>
+      <p class="dl-meta">Free · Windows 10/11 · <a href="https://github.com/VirageRoblox/TinyRDP">source on GitHub</a></p>
+    </div>
+    <img class="shot" src="preview.png" width="342" height="274"
+         alt="The TinyRDP app window showing Multi-session: READY">
+  </div>
 
   <h2>How to use</h2>
   <ol>
